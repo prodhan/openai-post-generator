@@ -117,6 +117,15 @@ If you encounter issues:
 - OpenAI API key
 - WordPress cron enabled (or alternative cron setup)
 
+## WordPress.org Plugin Info
+
+* **Requires at least:** 5.0
+* **Tested up to:** 6.4
+* **Requires PHP:** 7.4
+* **Stable tag:** 1.0.0
+* **License:** GPLv2 or later
+* **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
+
 ## Author
 
 - **Ariful Islam**
@@ -126,6 +135,8 @@ If you encounter issues:
 ## License
 
 This plugin is licensed under the GPL v2 or later.
+
+See [LICENSE](https://www.gnu.org/licenses/gpl-2.0.html) for more information.
 
 ## Support
 
