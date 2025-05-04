@@ -1,4 +1,4 @@
-# OpenAI Post Generator
+# OpenAI Post Generator WordPress Plugin
 
 A powerful WordPress plugin that automatically generates and publishes articles using OpenAI's API.
 
