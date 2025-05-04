@@ -1,0 +1,67 @@
+/**
+ * The admin-specific CSS for the plugin.
+ *
+ * @since      1.0.0
+ * @package    OpenAI_Post_Generator
+ * @subpackage OpenAI_Post_Generator/admin/css
+ */
+
+.tab-content {
+    margin-top: 20px;
+}
+
+.nav-tab-wrapper {
+    margin-bottom: 20px;
+}
+
+#generation_status {
+    margin: 20px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #e2e4e7;
+    border-radius: 4px;
+}
+
+#generation_status .spinner {
+    margin: 0 10px 0 0;
+}
+
+#generation_result {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e2e4e7;
+    border-radius: 4px;
+}
+
+#generation_result.success {
+    background: #f0f6e7;
+    border-color: #c3e6b5;
+}
+
+#generation_result.error {
+    background: #fbeaea;
+    border-color: #f5c6cb;
+}
+
+.form-table th {
+    width: 200px;
+}
+
+.form-table td {
+    padding: 15px 10px;
+}
+
+.form-table input[type="text"],
+.form-table input[type="password"],
+.form-table input[type="number"],
+.form-table select,
+.form-table textarea {
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-table .description {
+    margin-top: 5px;
+    color: #666;
+} 
