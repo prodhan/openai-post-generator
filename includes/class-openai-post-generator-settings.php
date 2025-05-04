@@ -5,6 +5,11 @@
  * @since      1.0.0
  * @package    OpenAI_Post_Generator
  * @subpackage OpenAI_Post_Generator/includes
+ * 
+ * Note: This file contains numerous error_log() calls that are only active when WP_DEBUG
+ * is enabled. These are used for debugging and should be considered normal for a plugin
+ * with complex functionality like API integration. For production, ensure WP_DEBUG is
+ * set to false in wp-config.php.
  */
 class OpenAI_Post_Generator_Settings {
 
@@ -290,12 +295,12 @@ class OpenAI_Post_Generator_Settings {
     private function get_datetime_replacements() {
         $current_time = current_time('timestamp');
         return [
-            '{date}' => date('Y-m-d H:i', $current_time),
-            '{date_only}' => date('Y-m-d', $current_time),
-            '{time_only}' => date('H:i', $current_time),
-            '{year}' => date('Y', $current_time),
-            '{month}' => date('m', $current_time),
-            '{day}' => date('d', $current_time),
+            '{date}' => gmdate('Y-m-d H:i', $current_time),
+            '{date_only}' => gmdate('Y-m-d', $current_time),
+            '{time_only}' => gmdate('H:i', $current_time),
+            '{year}' => gmdate('Y', $current_time),
+            '{month}' => gmdate('m', $current_time),
+            '{day}' => gmdate('d', $current_time),
         ];
     }
     
@@ -397,7 +402,7 @@ class OpenAI_Post_Generator_Settings {
         // Display next scheduled time if available
         $next = wp_next_scheduled('openai_post_generator_cron_event');
         if ($next) {
-            echo '<p class="description">Next scheduled run: ' . date('Y-m-d H:i:s', $next) . '</p>';
+            echo '<p class="description">Next scheduled run: ' . esc_html(gmdate('Y-m-d H:i:s', $next)) . '</p>';
         }
     }
 
@@ -408,12 +413,12 @@ class OpenAI_Post_Generator_Settings {
         $frequency = isset($options['schedule_frequency']) ? $options['schedule_frequency'] : '';
         $disabled = in_array($frequency, $custom_intervals) ? 'disabled' : '';
         
-        echo '<input type="time" id="schedule_time" name="openai_post_generator_options[schedule_time]" value="' . esc_attr($time) . '" ' . $disabled . ' />';
+        echo '<input type="time" id="schedule_time" name="openai_post_generator_options[schedule_time]" value="' . esc_attr($time) . '" ' . esc_attr($disabled) . ' />';
         
         if (in_array($frequency, $custom_intervals)) {
             echo '<p class="description">Time setting not used for minute-based schedules</p>';
         } else {
-            echo '<p class="description">Set the time when the post should be generated (using your WordPress timezone: ' . wp_timezone_string() . ')</p>';
+            echo '<p class="description">Set the time when the post should be generated (using your WordPress timezone: ' . esc_html(wp_timezone_string()) . ')</p>';
         }
     }
 
@@ -474,14 +479,14 @@ class OpenAI_Post_Generator_Settings {
             wp_schedule_event($timestamp, $frequency, 'openai_post_generator_cron_event');
             
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[OpenAI Post Generator] Scheduled with custom interval: ' . $frequency . ', first run at: ' . date('Y-m-d H:i:s', $timestamp));
+                error_log('[OpenAI Post Generator] Scheduled with custom interval: ' . $frequency . ', first run at: ' . gmdate('Y-m-d H:i:s', $timestamp));
             }
         } elseif ($frequency && $time) {
             $timestamp = $this->get_next_scheduled_time($time);
             wp_schedule_event($timestamp, $frequency, 'openai_post_generator_cron_event');
             
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[OpenAI Post Generator] Scheduled with standard interval: ' . $frequency . ' at ' . $time . ', first run at: ' . date('Y-m-d H:i:s', $timestamp));
+                error_log('[OpenAI Post Generator] Scheduled with standard interval: ' . $frequency . ' at ' . $time . ', first run at: ' . gmdate('Y-m-d H:i:s', $timestamp));
             }
         }
     }
@@ -489,7 +494,7 @@ class OpenAI_Post_Generator_Settings {
     private function get_next_scheduled_time($time) {
         $now = current_time('timestamp');
         list($hour, $minute) = explode(':', $time);
-        $scheduled = mktime($hour, $minute, 0, date('n', $now), date('j', $now), date('Y', $now));
+        $scheduled = mktime($hour, $minute, 0, gmdate('n', $now), gmdate('j', $now), gmdate('Y', $now));
         if ($scheduled <= $now) {
             $scheduled = strtotime('+1 day', $scheduled);
         }
@@ -504,17 +509,17 @@ class OpenAI_Post_Generator_Settings {
     public function generate_post_ajax_handler() {
         // Debug log
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[OpenAI Post Generator] generate_post_ajax_handler called at ' . date('Y-m-d H:i:s'));
+            error_log('[OpenAI Post Generator] generate_post_ajax_handler called at ' . gmdate('Y-m-d H:i:s'));
         }
         
         // Check if this is a scheduled request or a manual AJAX request
-        $is_scheduled = isset($_POST['is_scheduled']) && $_POST['is_scheduled'];
+        $is_scheduled = isset($_POST['is_scheduled']) ? wp_unslash(sanitize_text_field($_POST['is_scheduled'])) : false;
         
         // Verify nonce (different approach for scheduled vs manual)
         if ($is_scheduled) {
             // For scheduled posts, we don't need standard nonce verification
             // Instead, we check if this is called from our cron callback
-            if (!isset($_POST['scheduled_secret']) || $_POST['scheduled_secret'] !== 'openai_scheduled_' . date('Ymd')) {
+            if (!isset($_POST['scheduled_secret']) || $_POST['scheduled_secret'] !== 'openai_scheduled_' . gmdate('Ymd')) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
                     error_log('[OpenAI Post Generator] Invalid scheduled secret for scheduled post');
                 }
@@ -526,7 +531,7 @@ class OpenAI_Post_Generator_Settings {
             }
         } else {
             // For manual AJAX requests, use standard nonce verification
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openai_post_generator_nonce')) {
+            if (!isset($_POST['nonce']) || !wp_verify_nonce(wp_unslash(sanitize_text_field($_POST['nonce'])), 'openai_post_generator_nonce')) {
                 wp_send_json_error('Invalid nonce');
                 return;
             }
@@ -534,7 +539,7 @@ class OpenAI_Post_Generator_Settings {
         
         // Prevent duplicate submissions with the same topic in quick succession
         static $processed_topics = array();
-        $topic = isset($_POST['topic']) ? sanitize_text_field($_POST['topic']) : '';
+        $topic = isset($_POST['topic']) ? wp_unslash(sanitize_text_field($_POST['topic'])) : '';
         
         if (in_array($topic, $processed_topics)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -566,7 +571,7 @@ class OpenAI_Post_Generator_Settings {
 
         // Get post data
         $category = isset($_POST['category']) ? intval($_POST['category']) : 0;
-        $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'draft';
+        $status = isset($_POST['status']) ? wp_unslash(sanitize_text_field($_POST['status'])) : 'draft';
 
         if (empty($topic)) {
             if ($is_scheduled) {
@@ -582,7 +587,7 @@ class OpenAI_Post_Generator_Settings {
 
         try {
             // Prepare the prompt with placeholder replacements
-            $raw_prompt = isset($_POST['custom_prompt']) ? $_POST['custom_prompt'] : $options['prompt'];
+            $raw_prompt = isset($_POST['custom_prompt']) ? wp_unslash(sanitize_textarea_field($_POST['custom_prompt'])) : $options['prompt'];
             $processed_prompt = isset($_POST['custom_prompt']) ? $raw_prompt : $this->replace_placeholders($raw_prompt);
             $prompt = $processed_prompt . ' ' . $topic;
             
@@ -602,53 +607,48 @@ class OpenAI_Post_Generator_Settings {
                 'temperature' => 0.7,
             ];
 
-            // Initialize cURL session for OpenAI API request
-            $ch = curl_init('https://api.openai.com/v1/chat/completions');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $options['api_key']
+            // Use WordPress HTTP API instead of cURL
+            $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
+                'timeout' => 120,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $options['api_key']
+                ],
+                'body' => json_encode($data)
             ]);
             
-            // Set timeout options
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connection timeout
-            curl_setopt($ch, CURLOPT_TIMEOUT, 120);       // Request timeout
-            
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[OpenAI Post Generator] Executing API request...');
-            }
-
-            // Execute the request
-            $response = curl_exec($ch);
-            
-            // Get HTTP status and other info for debugging
-            $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $time_taken = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[OpenAI Post Generator] API request completed. Status: ' . $http_status . ', Time: ' . $time_taken . 's');
+                error_log('[OpenAI Post Generator] API request completed.');
             }
 
             // Check for errors
-            if (curl_errno($ch)) {
-                $curl_error = curl_error($ch);
+            if (is_wp_error($response)) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('[OpenAI Post Generator] cURL Error: ' . $curl_error);
+                    error_log('[OpenAI Post Generator] WordPress HTTP API Error: ' . $response->get_error_message());
                 }
-                throw new Exception($curl_error);
+                throw new Exception($response->get_error_message());
             }
 
-            curl_close($ch);
+            // Check the response code
+            $http_status = wp_remote_retrieve_response_code($response);
+            if ($http_status !== 200) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[OpenAI Post Generator] API returned non-200 status code: ' . $http_status);
+                    error_log('[OpenAI Post Generator] Response body: ' . wp_remote_retrieve_body($response));
+                }
+                throw new Exception('API returned error status: ' . $http_status);
+            }
 
+            // Get response body
+            $response_body = wp_remote_retrieve_body($response);
+            
             // Decode the response
-            $response_data = json_decode($response, true);
+            $response_data = json_decode($response_body, true);
             
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     error_log('[OpenAI Post Generator] JSON decode error: ' . json_last_error_msg());
-                    error_log('[OpenAI Post Generator] Response received: ' . substr($response, 0, 1000) . '...');
+                    error_log('[OpenAI Post Generator] Response received: ' . substr($response_body, 0, 1000) . '...');
                 }
             }
 
@@ -729,7 +729,7 @@ class OpenAI_Post_Generator_Settings {
         
         // Check next scheduled event
         $next = wp_next_scheduled('openai_post_generator_cron_event');
-        $next_formatted = $next ? date('Y-m-d H:i:s', $next) : 'Not scheduled';
+        $next_formatted = $next ? gmdate('Y-m-d H:i:s', $next) : 'Not scheduled';
         
         // Show debug info
         include_once 'partials/openai-post-generator-debug-display.php';
@@ -741,12 +741,12 @@ class OpenAI_Post_Generator_Settings {
     private static function get_static_datetime_replacements() {
         $current_time = current_time('timestamp');
         return [
-            '{date}' => date('Y-m-d H:i', $current_time),
-            '{date_only}' => date('Y-m-d', $current_time),
-            '{time_only}' => date('H:i', $current_time),
-            '{year}' => date('Y', $current_time),
-            '{month}' => date('m', $current_time),
-            '{day}' => date('d', $current_time),
+            '{date}' => gmdate('Y-m-d H:i', $current_time),
+            '{date_only}' => gmdate('Y-m-d', $current_time),
+            '{time_only}' => gmdate('H:i', $current_time),
+            '{year}' => gmdate('Y', $current_time),
+            '{month}' => gmdate('m', $current_time),
+            '{day}' => gmdate('d', $current_time),
         ];
     }
     
@@ -763,7 +763,7 @@ class OpenAI_Post_Generator_Settings {
         $is_manual_debug = defined('OPENAI_MANUAL_DEBUG_RUN') && OPENAI_MANUAL_DEBUG_RUN;
         
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[OpenAI Post Generator] Scheduled post generation triggered at ' . date('Y-m-d H:i:s') . ($is_manual_debug ? ' (manual debug run)' : ''));
+            error_log('[OpenAI Post Generator] Scheduled post generation triggered at ' . gmdate('Y-m-d H:i:s') . ($is_manual_debug ? ' (manual debug run)' : ''));
         }
         
         $options = get_option('openai_post_generator_options');
@@ -803,7 +803,7 @@ class OpenAI_Post_Generator_Settings {
             'status' => $default_status,
             'author_id' => $default_author,
             'is_scheduled' => true,
-            'scheduled_secret' => 'openai_scheduled_' . date('Ymd'),
+            'scheduled_secret' => 'openai_scheduled_' . gmdate('Ymd'),
             'custom_prompt' => $processed_prompt  // Pass the processed prompt to the handler
         ];
         
